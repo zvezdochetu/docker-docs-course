@@ -429,3 +429,6 @@ security:
       - '^node$'
       - '^postcss$'
       - '^tailwindcss$'
+  node:
+    permissions:
+      disable: true
