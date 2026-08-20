@@ -3,15 +3,13 @@ name: Deploy Hugo Docs to GitHub Pages
 on:
   push:
     branches: ["main"]
-  workflow_dispatch: # Позволяет запускать сборку вручную из интерфейса GitHub
+  workflow_dispatch:
 
-# Права доступа, необходимые для деплоя на GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Отменяем старые параллельные сборки, если запущен новый пуш
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -23,29 +21,40 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          submodules: recursive # Скачиваем субмодули, если они используются
+          submodules: recursive
           fetch-depth: 0
 
-      # Автоматически определяет baseURL с учетом имени вашего репозитория
+      # 1. Настраиваем Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 2. Устанавливаем JS-пакеты (Alpine.js, highlight.js и др.)
+      - name: Install Node Dependencies
+        run: npm ci
+
+      # 3. Настраиваем параметры GitHub Pages
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
 
-      # Устанавливаем Hugo Extended (extended: true критичен для компиляции SCSS/SASS стилей Docker)
+      # 4. Устанавливаем Hugo Extended
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: 'latest'
           extended: true
 
-      # Собираем статику
+      # 5. Собираем статику
       - name: Build Hugo Site
         run: |
           hugo \
             --minify \
             --baseURL "${{ steps.pages.outputs.base_url }}/"
 
-      # Передаем папку /public экшену деплоя
+      # 6. Загружаем артефакты для деплоя
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
         with:
