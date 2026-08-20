@@ -419,3 +419,13 @@ module:
           target: content/manuals/ai/docker-agent/community
         - source: docs/demo.gif
           target: content/manuals/ai/docker-agent/demo.gif
+
+security:
+  exec:
+    allow:
+      - '^(dart-)?sass$'
+      - '^go$'
+      - '^git$'
+      - '^node$'
+      - '^postcss$'
+      - '^tailwindcss$'
