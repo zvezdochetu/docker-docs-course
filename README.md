@@ -1,40 +1,17 @@
-# Docs @ Docker
+# DocOps & Git Practice Repository
 
-<div align="center">
-<img src="static/assets/images/docker-docs.svg" alt="Welcome to Docker Documentation">
-</div>
-<br/>
-<br/>
-
-Welcome to the Docker Documentation repository. This is the source for the [Docker Docs Website](https://docs.docker.com/).
-
-Feel free to open pull requests or issues. Our docs are completely open source, and we deeply appreciate contributions from the Docker community!
-
-## Provide feedback
-
-We’d love to hear your feedback! To submit feedback:
-
-- Click **[New issue](https://github.com/docker/docs/issues/new)** on the docs repository, or
-- Click **Request changes** in the right column of every page on
-  [docs.docker.com](https://docs.docker.com/), or
-- Click **Give feedback** on every page in the docs.
-
-To get community support, use the [Docker Community Slack](https://dockr.ly/comm-slack). Personalized support is available
-through the Docker Pro, Team, and Business subscriptions. See [Docker
-Pricing](https://www.docker.com/pricing?ref=Docs&refAction=DocsReadme) for details.
-
-If you have an idea for a new feature or behavior change in a specific aspect of
-Docker or have found a product bug, file an issue in the project's
-repository.
-
-## Contribute to Docker docs
-
-We welcome contributions! To get started:
-
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution workflow and setup
-- [STYLE.md](STYLE.md) - Writing style and content guidelines
-- [COMPONENTS.md](COMPONENTS.md) - Component and shortcode usage
-
-## Copyright and license
-
-Copyright 2013-2026 Docker, Inc., released under the [Apache 2.0 license](https://github.com/docker/docs/blob/main/LICENSE).
+> **Disclaimer & Educational Notice**
+> 
+> This repository is an **educational mirror and modified fork** of the official [Docker Documentation](https://github.com/docker/docs). 
+> It is maintained solely as a sandbox for practicing Git workflows, Docs-as-Code methodologies, and CI/CD automation (linters, PR bots, static builds).
+> 
+> * **Official Docker Docs:** [docs.docker.com](https://docs.docker.com)
+> * **Original Repository:** [github.com/docker/docs](https://github.com/docker/docs)
+> 
+> ---
+> 
+> ### License & Attribution
+> 
+> * Original content and code: **Copyright © 2016 Docker, Inc.**
+> * Licensed under the **Apache License, Version 2.0** (the "License"); you may not use this repository except in compliance with the License. You may obtain a copy of the License in the [`LICENSE`](./LICENSE) file or at [apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0).
+> * **Notice of Modification:** The original Git history has been reset, and internal CI/CD workflows have been replaced with simplified educational GitHub Actions for training purposes.
