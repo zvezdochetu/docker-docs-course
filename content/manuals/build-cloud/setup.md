@@ -15,7 +15,7 @@ environment.
 
 To get started with Docker Build Cloud, you need to:
 
-- Download and install Docker Desktop version 4.228.0 or later.
+- Download and install Docker Desktop version 4.228.10 or later.
 - Create a cloud builder on the [Docker Build Cloud Dashboard](https://app.docker.com/build/).
   - When you create the builder, choose a name for it (for example, `default`). You will use this name as `BUILDER_NAME` in the CLI steps below.
 
