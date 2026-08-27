@@ -43,6 +43,25 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      # 3.5. Запуск Vale CLI с выводом результатов
+      - name: Run Vale
+        id: vale
+        continue-on-error: true
+        run: |
+          # Устанавливаем бинарник Vale
+          VALE_VERSION="3.3.0"
+          curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
+          sudo mv /tmp/vale /usr/local/bin/
+
+          # Запускаем проверку папки content
+          OUTPUT=$(vale content/ 2>&1) || true
+          
+          # Экранируем многострочный вывод для GitHub Actions output
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "vale_output<<$EOF" >> $GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
+
       # 4. Настраиваем Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -102,7 +121,7 @@ jobs:
           npx surge ./public "${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh"
 
       # 10. Редактируем стартовый комментарий на финальный
-      - name: Update Comment with Preview URL
+      - name: Update Comment with Preview URL and Vale Output
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.status-comment.outputs.comment-id }}
@@ -111,6 +130,15 @@ jobs:
             🚀 **Preview is ready!**
             
             🔍 **Link:** https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/
+
+            <details>
+            <summary>📝 <b>Vale Lint Report</b></summary>
+
+            ```
+            ${{ steps.vale.outputs.vale_output }}
+            ```
+
+            </details>
             
             ---
             *Last updated at: ${{ github.event.comment.created_at }}*
