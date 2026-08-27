@@ -33,7 +33,7 @@ jobs:
             * **Triggered by:** @${{ github.actor }}
             * **Action run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             
-            *Building Hugo site and deploying to Surge preview...*
+            *Running Vale linting, building Hugo site and deploying to Surge preview...*
 
       # 3. Выкачиваем код из PR
       - name: Checkout PR Code
@@ -43,44 +43,45 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # 3.5. Запуск Vale CLI с выводом результатов
+      # 4. Установка и запуск Vale CLI (без ANSI-мусора)
       - name: Run Vale
         id: vale
         continue-on-error: true
         run: |
-          # Устанавливаем бинарник Vale
           VALE_VERSION="3.3.0"
           curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
           sudo mv /tmp/vale /usr/local/bin/
 
-          # Запускаем проверку папки content
-          OUTPUT=$(vale content/ 2>&1) || true
+          # --output=line убирает спецсимволы кодировки/цвета
+          OUTPUT=$(vale --output=line content/ 2>&1) || true
+          if [ -z "$OUTPUT" ]; then
+            OUTPUT="No linting issues found!"
+          fi
           
-          # Экранируем многострочный вывод для GitHub Actions output
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "vale_output<<$EOF" >> $GITHUB_OUTPUT
           echo "$OUTPUT" >> $GITHUB_OUTPUT
           echo "$EOF" >> $GITHUB_OUTPUT
 
-      # 4. Настраиваем Node.js
+      # 5. Настраиваем Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
-      # 5. Устанавливаем JS-пакеты (Alpine.js, highlight.js и др.)
+      # 6. Устанавливаем JS-пакеты
       - name: Install Node Dependencies
         run: npm ci
 
-      # 6. Устанавливаем Hugo Extended
+      # 7. Устанавливаем Hugo Extended
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: 'latest'
           extended: true
 
-      # 7. Собираем статику Hugo
+      # 8. Собираем статику Hugo
       - name: Build Hugo Site
         run: |
           hugo \
@@ -88,21 +89,17 @@ jobs:
             --minify \
             --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      # 8. Очистка ненужных папок (включая guides)
+      # 9. Очистка ненужных папок
       - name: Trim Public Folder for Preview
         run: |
-          # Удаляем видео, ИИ, справочники и интерфейсы Desktop
           rm -rf ./public/assets/video
           rm -rf ./public/ai
           rm -rf ./public/reference
           rm -rf ./public/desktop
-          
-          # Удаляем разделы гайдов и архивов
           rm -rf ./public/guides
           rm -rf ./public/archives
           rm -rf ./public/engine/release-notes
           
-          # Копируем .surgeignore в public/
           if [ -f .surgeignore ]; then
             cp .surgeignore ./public/.surgeignore
           fi
@@ -113,15 +110,15 @@ jobs:
           echo "=== Final Size of ./public ==="
           du -sh ./public
 
-      # 9. Деплоим на Surge
+      # 10. Деплоим на Surge
       - name: Deploy Preview to Surge
         env:
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
         run: |
           npx surge ./public "${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh"
 
-      # 10. Редактируем стартовый комментарий на финальный
-      - name: Update Comment with Preview URL and Vale Output
+      # 11. Редактируем стартовый комментарий на финальный (Preview + Vale)
+      - name: Update Comment with Preview URL and Vale Report
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.status-comment.outputs.comment-id }}
@@ -134,7 +131,7 @@ jobs:
             <details>
             <summary>📝 <b>Vale Lint Report</b></summary>
 
-            ```
+            ```text
             ${{ steps.vale.outputs.vale_output }}
             ```
 
