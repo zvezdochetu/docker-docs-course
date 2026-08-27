@@ -47,17 +47,32 @@ jobs:
       - name: Run Vale
         id: vale
         continue-on-error: true
+        if: ${{ matrix.target == 'vale' && github.event_name == 'pull_request' }}
         run: |
           VALE_VERSION="3.3.0"
           curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
           sudo mv /tmp/vale /usr/local/bin/
 
-          # --output=line убирает спецсимволы кодировки/цвета
-          OUTPUT=$(vale --output=line content/ 2>&1) || true
-          if [ -z "$OUTPUT" ]; then
-            OUTPUT="No linting issues found!"
+          # 1. Получаем список только измененных и добавленных .md файлов в PR
+          git fetch origin ${{ github.base_ref }} --depth=1
+          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT origin/${{ github.base_ref }}...HEAD | grep '\.md$' || true)
+
+          if [ -z "$CHANGED_FILES" ]; then
+            OUTPUT="No Markdown files modified in this PR."
+          else
+            # 2. Запускаем Vale только по измененным файлам
+            OUTPUT=$(vale --output=line $CHANGED_FILES 2>&1) || true
+            if [ -z "$OUTPUT" ]; then
+              OUTPUT="No linting issues found in modified files!"
+            fi
           fi
-          
+
+          # 3. Обрезаем вывод, если он превышает ~60 KB (защита от падения GitHub Output)
+          if [ ${#OUTPUT} -gt 60000 ]; then
+            OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
+          fi
+
+          # 4. Безопасный запись в GITHUB_OUTPUT с multiline delimiter
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "vale_output<<$EOF" >> $GITHUB_OUTPUT
           echo "$OUTPUT" >> $GITHUB_OUTPUT
