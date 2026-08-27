@@ -53,26 +53,29 @@ jobs:
           curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
           sudo mv /tmp/vale /usr/local/bin/
 
-          # 1. Получаем список только измененных и добавленных .md файлов в PR
+          # 1. Подтягиваем базовую ветку для честного diff
           git fetch origin ${{ github.base_ref }} --depth=1
+
+          # 2. Получаем список измененных файлов и сразу передаем в Vale
+          # Флаг --relative гарантирует правильные пути от корня репозитория
           CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT origin/${{ github.base_ref }}...HEAD | grep '\.md$' || true)
 
           if [ -z "$CHANGED_FILES" ]; then
             OUTPUT="No Markdown files modified in this PR."
           else
-            # 2. Запускаем Vale только по измененным файлам
-            OUTPUT=$(vale --output=line $CHANGED_FILES 2>&1) || true
+            # Передаем файлы аккуратно через xargs
+            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1) || true
             if [ -z "$OUTPUT" ]; then
               OUTPUT="No linting issues found in modified files!"
             fi
           fi
 
-          # 3. Обрезаем вывод, если он превышает ~60 KB (защита от падения GitHub Output)
+          # 3. Обрезаем вывод при превышении лимита размера
           if [ ${#OUTPUT} -gt 60000 ]; then
             OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
           fi
 
-          # 4. Безопасный запись в GITHUB_OUTPUT с multiline delimiter
+          # 4. Безопасная запись в GITHUB_OUTPUT
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "vale_output<<$EOF" >> $GITHUB_OUTPUT
           echo "$OUTPUT" >> $GITHUB_OUTPUT
