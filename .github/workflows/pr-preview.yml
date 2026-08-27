@@ -4,9 +4,13 @@ on:
   issue_comment:
     types: [created]
 
+permissions:
+  contents: read
+  pull-requests: write # Обязательно для создания/обновления комментариев
+  statuses: write      # Нужно для выставления галочек проверки
+
 jobs:
   deploy-comment-preview:
-    # Запускаем только если комментарий оставлен в PR и содержит фразу "/preview"
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/preview')
     runs-on: ubuntu-latest
     steps:
@@ -16,6 +20,13 @@ jobs:
           ref: refs/pull/${{ github.event.issue.number }}/head
           submodules: recursive
           fetch-depth: 0
+
+      # Реакция 👀 на комментарий пользователя, чтобы сразу дать визуальный отклик
+      - name: Add Eyes Reaction
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ github.event.comment.id }}
+          reactions: eyes
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -38,10 +49,11 @@ jobs:
             --minify \
             --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      - name: Deploy Preview to Surge
+      - name: Deploy Preview to Surge & Post Comment
         uses: afc163/surge-preview@v1
         with:
           surge_token: ${{ secrets.SURGE_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          pr_number: ${{ github.event.issue.number }} # Явно передаем номер PR
           dist: './public'
           build: ''
