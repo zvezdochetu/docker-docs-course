@@ -6,27 +6,28 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write # Обязательно для создания/обновления комментариев
-  statuses: write      # Нужно для выставления галочек проверки
+  pull-requests: write
+  issues: write
 
 jobs:
   deploy-comment-preview:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/preview')
     runs-on: ubuntu-latest
     steps:
+      # 1. Поставить 👀 на комментарий пользователя
+      - name: Add Eyes Reaction
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ github.event.comment.id }}
+          reactions: eyes
+
+      # 2. Стянуть код из PR
       - name: Checkout PR Code
         uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ github.event.issue.number }}/head
           submodules: recursive
           fetch-depth: 0
-
-      # Реакция 👀 на комментарий пользователя, чтобы сразу дать визуальный отклик
-      - name: Add Eyes Reaction
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          comment-id: ${{ github.event.comment.id }}
-          reactions: eyes
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -43,17 +44,28 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
+      # 3. Сборка сайта Hugo
       - name: Build Hugo Site
         run: |
           hugo \
             --minify \
             --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      - name: Deploy Preview to Surge & Post Comment
+      # 4. Чистый деплой на Surge (без передачи лишних параметров)
+      - name: Deploy Preview to Surge
         uses: afc163/surge-preview@v1
         with:
           surge_token: ${{ secrets.SURGE_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          pr_number: ${{ github.event.issue.number }} # Явно передаем номер PR
           dist: './public'
           build: ''
+
+      # 5. Публикация комментария с готовой ссылкой на превью
+      - name: Post Preview URL in PR
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            🚀 **Preview is ready!**
+            
+            🔍 **Link:** https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/
