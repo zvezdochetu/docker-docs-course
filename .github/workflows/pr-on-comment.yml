@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 0
 
       # 4. Установка и запуск Vale CLI (без ANSI-мусора)
-      - name: Run Vale
+      - name: Run Vale (Debug Mode)
         id: vale
         continue-on-error: true
         if: ${{ matrix.target == 'vale' && github.event_name == 'pull_request' }}
@@ -53,35 +53,51 @@ jobs:
           curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
           sudo mv /tmp/vale /usr/local/bin/
 
-          # 1. Проверяем работоспособность Vale (прогон по всей папке content/)
-          mkdir -p ./tmp
-          vale --output=line content/ > ./tmp/vale.out 2>&1 || true
+          echo "=== 1. VALE VERSION & CONFIG CHECK ==="
+          vale version
+          echo "Current directory: $(pwd)"
+          echo "Config file check:"
+          ls -la .vale.ini || echo "NO .vale.ini FOUND!"
+          echo "Styles directory check:"
+          ls -la _vale || echo "NO _vale DIR FOUND!"
 
-          # 2. Получаем список измененных файлов через GitHub Event Payload (без зависимости от git fetch)
-          PR_NUMBER=$(jq -r .pull_request.number "$GITHUB_EVENT_PATH")
-          
-          # Если есть измененные файлы, фильтруем сырой отчет Vale только по ним
+          echo -e "\n=== 2. GIT DIFF CHECK ==="
           git fetch origin ${{ github.base_ref }} --depth=100 || true
           CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '\.md$' || true)
+          echo "Changed .md files:"
+          echo "$CHANGED_FILES"
 
+          echo -e "\n=== 3. RAW VALE RUN ON CONTENT/ ==="
+          mkdir -p ./tmp
+          vale --output=line content/ > ./tmp/vale.out 2>&1 || true
+          echo "Total lines in vale.out: $(wc -l < ./tmp/vale.out)"
+          echo "First 15 lines of vale.out:"
+          head -n 15 ./tmp/vale.out
+
+          echo -e "\n=== 4. RAW VALE RUN ON DIRECT FILE (TEST) ==="
+          if [ -n "$CHANGED_FILES" ]; then
+            FIRST_FILE=$(echo "$CHANGED_FILES" | head -n 1)
+            echo "Testing Vale directly on: $FIRST_FILE"
+            vale --output=line "$FIRST_FILE" || true
+          fi
+
+          echo -e "\n=== 5. FILTERING PROCESS ==="
           if [ -z "$CHANGED_FILES" ]; then
-            OUTPUT="No Markdown files modified in this PR."
+            OUTPUT="[DEBUG] No Markdown files detected in git diff."
           else
-            # Фильтруем строки из vale.out, оставляя только упоминания измененных файлов
             PATTERN=$(echo "$CHANGED_FILES" | paste -sd '|' -)
+            echo "Grepping with pattern: $PATTERN"
             OUTPUT=$(grep -E "$PATTERN" ./tmp/vale.out || true)
             
             if [ -z "$OUTPUT" ]; then
-              OUTPUT="No linting issues found in modified files!"
+              OUTPUT="[DEBUG] Diff detected files, but grep matched nothing in vale.out."
             fi
           fi
 
-          # 3. Отладка в консоль CI (чтобы точно видеть вывод в логах Step)
-          echo "=== VALE RAW OUTPUT SAMPLE ==="
-          head -n 20 ./tmp/vale.out || true
-          echo "=============================="
+          echo -e "\n=== 6. FINAL OUTPUT TO BE SENT TO COMMENT ==="
+          echo "$OUTPUT"
 
-          # 4. Запись в GITHUB_OUTPUT для комментария
+          # Формирование вывода для PR
           if [ ${#OUTPUT} -gt 60000 ]; then
             OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
           fi
