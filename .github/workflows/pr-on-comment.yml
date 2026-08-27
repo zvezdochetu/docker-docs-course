@@ -44,23 +44,24 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      # 3. Сборка сайта Hugo
+# 3. Сборка сайта Hugo
       - name: Build Hugo Site
         run: |
           hugo \
             --minify \
             --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      # 4. Чистый деплой на Surge (без передачи лишних параметров)
+      # 4. Деплой на Surge (передаем точный domain!)
       - name: Deploy Preview to Surge
         uses: afc163/surge-preview@v1
         with:
           surge_token: ${{ secrets.SURGE_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          domain: "${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh" # <-- КРИТИЧЕСКИ ВАЖНО
           dist: './public'
           build: ''
 
-      # 5. Публикация комментария с готовой ссылкой на превью
+      # 5. Публикация комментария с готовой ссылкой
       - name: Post Preview URL in PR
         uses: peter-evans/create-or-update-comment@v4
         with:
