@@ -14,14 +14,28 @@ jobs:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/preview')
     runs-on: ubuntu-latest
     steps:
-      # 1. Добавляем реакцию 👀 на комментарий
+      # 1. Реакция 👀 на комментарий
       - name: Add Eyes Reaction
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ github.event.comment.id }}
           reactions: eyes
 
-      # 2. Выкачиваем код из PR
+      # 2. Создаем первый комментарий: "Build started"
+      - name: Create Status Comment
+        id: status-comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            ⏳ **Build started!**
+            
+            * **Triggered by:** @${{ github.actor }}
+            * **Action run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            *Building Hugo site and deploying to Surge preview...*
+
+      # 3. Выкачиваем код из PR
       - name: Checkout PR Code
         uses: actions/checkout@v4
         with:
@@ -29,25 +43,25 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # 3. Настраиваем Node.js
+      # 4. Настраиваем Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
-      # 4. Устанавливаем JS-пакеты (Alpine.js, highlight.js и др.)
+      # 5. Устанавливаем JS-пакеты (Alpine.js, highlight.js и др.)
       - name: Install Node Dependencies
         run: npm ci
 
-      # 5. Устанавливаем Hugo Extended
+      # 6. Устанавливаем Hugo Extended
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: 'latest'
           extended: true
 
-      # 6. Собираем статику Hugo под домен текущего PR
+      # 7. Собираем статику Hugo
       - name: Build Hugo Site
         run: |
           hugo \
@@ -55,38 +69,48 @@ jobs:
             --minify \
             --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      # 7. Агрессивная очистка тяжелых разделов для влезания в лимит Surge
+      # 8. Очистка ненужных папок (включая guides)
       - name: Trim Public Folder for Preview
         run: |
-          # Удаляем медиафайлы и ИИ-разделы
+          # Удаляем видео, ИИ, справочники и интерфейсы Desktop
           rm -rf ./public/assets/video
           rm -rf ./public/ai
-          
-          # Удаляем громоздкую справочную документацию и релиз-ноутс
           rm -rf ./public/reference
-          rm -rf ./public/desktop/release-notes
+          rm -rf ./public/desktop
           
-          # Копируем .surgeignore из корня репозитория в public/
+          # Удаляем разделы гайдов и архивов
+          rm -rf ./public/guides
+          rm -rf ./public/archives
+          rm -rf ./public/engine/release-notes
+          
+          # Копируем .surgeignore в public/
           if [ -f .surgeignore ]; then
             cp .surgeignore ./public/.surgeignore
           fi
 
-          echo "=== Size of ./public after trimming ==="
+          echo "=== Top 15 largest directories in ./public ==="
+          du -sh ./public/* | sort -rh | head -n 15
+
+          echo "=== Final Size of ./public ==="
           du -sh ./public
 
-      # 8. Деплоим облегченную папку ./public на Surge
+      # 9. Деплоим на Surge
       - name: Deploy Preview to Surge
         env:
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
         run: |
           npx surge ./public "${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh"
 
-      # 9. Публикуем комментарий с итоговой ссылкой
-      - name: Post Preview URL in PR
+      # 10. Редактируем стартовый комментарий на финальный
+      - name: Update Comment with Preview URL
         uses: peter-evans/create-or-update-comment@v4
         with:
-          issue-number: ${{ github.event.issue.number }}
+          comment-id: ${{ steps.status-comment.outputs.comment-id }}
+          edit-mode: replace
           body: |
             🚀 **Preview is ready!**
             
             🔍 **Link:** https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/
+            
+            ---
+            *Last updated at: ${{ github.event.comment.created_at }}*
