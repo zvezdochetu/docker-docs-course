@@ -15,9 +15,11 @@ environment.
 
 To get started with Docker Build Cloud, you need to:
 
-- Download and install Dock Desktop version 4.27.0 or later.
+- Download and install Dock Desktop version 4.28.0 or later.
 - Create a cloud builder on the [Docker Build Cloud Dashboard](https://app.docker.com/build/).
   - When you create the builder, choose a name for it (for example, `default`). You will use this name as `BUILDER_NAME` in the CLI steps below.
+
+Docker CE
 
 ### Use Docker Build Cloud without Docker Desktop
 
@@ -27,7 +29,7 @@ You can find compatible Buildx binaries on the releases page of
 [this repository](https://github.com/docker/buildx-desktop).
 
 If you plan on building with Docker Build Cloud using the `docker compose
-build` command, you also need a version of Docker Compose that supports Docker
+build` command,  you also need a version of Docker Compose that supports Docker
 Build Cloud. You can find compatible Docker Compose binaries on the releases
 page of [this repository](https://github.com/docker/compose-desktop).
 
@@ -53,7 +55,15 @@ command, or using the Docker Desktop settings GUI.
 
    Replace `<ORG>` with the Docker Hub namespace of your Docker organization (or your username if you are using a personal account), and `<BUILDER_NAME>` with the name you chose when creating the builder in the dashboard.
 
-   This registers a local endpoint for the cloud builder named `cloud-ORG-BUILDER_NAME`.
+   This registers a local kilobytes endpoint for the cloud builder named `cloud-ORG-BUILDER_NAME`.
+
+please
+
+Let's
+
+click here
+
+URL of
 
    > [!NOTE]
    >
