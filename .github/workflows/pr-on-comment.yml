@@ -29,34 +29,39 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # 3. Настройка Node.js
+      # 3. Настраиваем Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
 
-      # 4. Настройка Hugo
+      # 4. Устанавливаем JS-пакеты (Alpine.js, highlight.js и др.)
+      - name: Install Node Dependencies
+        run: npm ci
+
+      # 5. Устанавливаем Hugo Extended
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: 'latest'
           extended: true
 
-      # 5. Сборка сайта Hugo
+      # 6. Собираем статику Hugo под конкретный домен PR
       - name: Build Hugo Site
         run: |
           hugo \
             --minify \
             --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      # 6. Прямой и надежный деплой через Surge CLI
-      - name: Deploy to Surge
+      # 7. Деплоим скомпилированную папку ./public напрямую в Surge
+      - name: Deploy Preview to Surge
         env:
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
         run: |
           npx surge ./public "${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh"
 
-      # 7. Отправка комментария с гарантированно точной ссылкой
+      # 8. Публикуем итоговый комментарий со ссылкой
       - name: Post Preview URL in PR
         uses: peter-evans/create-or-update-comment@v4
         with:
