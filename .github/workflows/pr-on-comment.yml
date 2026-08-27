@@ -47,32 +47,40 @@ jobs:
       - name: Run Vale
         id: vale
         continue-on-error: true
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'issue_comment' || github.event_name == 'pull_request' }}
         run: |
+          # 1. Установка Vale
           VALE_VERSION="3.3.0"
           curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
           sudo mv /tmp/vale /usr/local/bin/
 
-          # 1. Получаем список измененных/добавленных .md файлов в PR
-          git fetch origin ${{ github.base_ref }} --depth=100 || true
-          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT origin/${{ github.base_ref }}...HEAD | grep '\.md$' || true)
-
-          if [ -z "$CHANGED_FILES" ]; then
-            OUTPUT="No Markdown files modified in this PR."
-          else
-            # 2. Прогоняем Vale только по измененным файлам через xargs
-            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1) || true
-            if [ -z "$OUTPUT" ]; then
-              OUTPUT="No linting issues found in modified files!"
-            fi
+          # 2. Определение целевой ветки (base ref)
+          TARGET_BRANCH="${{ github.base_ref }}"
+          if [ -z "$TARGET_BRANCH" ]; then
+            TARGET_BRANCH="main"
           fi
 
-          # 3. Защита от превышения лимита длины комментария GitHub (~60KB)
+          # 3. Подтягиваем историю и находим только измененные .md файлы
+          git fetch origin $TARGET_BRANCH --depth=100 || true
+          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT origin/$TARGET_BRANCH...HEAD | grep '\.md$' || true)
+
+          # 4. Запуск Vale по диффу или фоллбэк на content/
+          if [ -n "$CHANGED_FILES" ]; then
+            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1) || true
+          else
+            OUTPUT=$(vale --output=line content/ 2>&1) || true
+          fi
+
+          if [ -z "$OUTPUT" ]; then
+            OUTPUT="No linting issues found!"
+          fi
+
+          # 5. Обрезка по размеру (защита от превышения лимита комментария)
           if [ ${#OUTPUT} -gt 60000 ]; then
             OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
           fi
 
-          # 4. Передача результата в step output для комментария
+          # 6. Запись вывода в GITHUB_OUTPUT
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "vale_output<<$EOF" >> $GITHUB_OUTPUT
           echo "$OUTPUT" >> $GITHUB_OUTPUT
