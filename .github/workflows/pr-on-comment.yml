@@ -14,14 +14,14 @@ jobs:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/preview')
     runs-on: ubuntu-latest
     steps:
-      # 1. Поставить 👀 на комментарий пользователя
+      # 1. Реакция 👀 на комментарий
       - name: Add Eyes Reaction
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ github.event.comment.id }}
           reactions: eyes
 
-      # 2. Стянуть код из PR
+      # 2. Выкачиваем код из PR
       - name: Checkout PR Code
         uses: actions/checkout@v4
         with:
@@ -29,39 +29,34 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      # 3. Настройка Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
 
-      - name: Install Node Dependencies
-        run: npm ci
-
+      # 4. Настройка Hugo
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: 'latest'
           extended: true
 
-# 3. Сборка сайта Hugo
+      # 5. Сборка сайта Hugo
       - name: Build Hugo Site
         run: |
           hugo \
             --minify \
             --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      # 4. Деплой на Surge (передаем точный domain!)
-      - name: Deploy Preview to Surge
-        uses: afc163/surge-preview@v1
-        with:
-          surge_token: ${{ secrets.SURGE_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          domain: "${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh" # <-- КРИТИЧЕСКИ ВАЖНО
-          dist: './public'
-          build: ''
+      # 6. Прямой и надежный деплой через Surge CLI
+      - name: Deploy to Surge
+        env:
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+        run: |
+          npx surge ./public "${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh"
 
-      # 5. Публикация комментария с готовой ссылкой
+      # 7. Отправка комментария с гарантированно точной ссылкой
       - name: Post Preview URL in PR
         uses: peter-evans/create-or-update-comment@v4
         with:
