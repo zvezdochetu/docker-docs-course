@@ -1,24 +1,19 @@
-name: PR Preview Deploy
+name: PR Preview (On Comment)
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-
-permissions:
-  contents: read
-  pull-requests: write # Нужно для публикации комментария в PR
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
-  cancel-in-progress: true
+  issue_comment:
+    types: [created]
 
 jobs:
-  build-and-preview:
+  deploy-comment-preview:
+    # Запускаем только если комментарий оставлен в PR и содержит фразу "/preview"
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/preview')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout PR Code
         uses: actions/checkout@v4
         with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
           submodules: recursive
           fetch-depth: 0
 
@@ -37,18 +32,16 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      # Собираем сайт (подставляем временный URL Surge для корректной работы ссылок)
       - name: Build Hugo Site
-        if: github.event.action != 'closed'
         run: |
           hugo \
             --minify \
-            --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.number }}.surge.sh/"
+            --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      # Деплой на Surge + авто-комментарий в PR
       - name: Deploy Preview to Surge
         uses: afc163/surge-preview@v1
         with:
           surge_token: ${{ secrets.SURGE_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           dist: './public'
-          teardown: true # Автоматически удаляет превью при закрытии/слиянии PR
+          build: ''

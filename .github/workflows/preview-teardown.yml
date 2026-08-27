@@ -1,0 +1,17 @@
+name: PR Preview Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  teardown:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Teardown Surge Preview
+        uses: afc163/surge-preview@v1
+        with:
+          surge_token: ${{ secrets.SURGE_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          teardown: true
+          build: ''
