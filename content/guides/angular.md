@@ -16,7 +16,7 @@ params:
   time: 20 minutes
 ---
 
-The Angular language-specific guide shows you how to containerize an Angular application using Docker, following best practices for creating efficient, production-ready containers.
+The Angular language-specific guides show you how to containerize an Angular application using Docker, following best practices for creating efficient, production-ready containers.
 
 [Angular](https://angular.dev/) is a robust and widely adopted framework for building dynamic, enterprise-grade web applications. However, managing dependencies, environments, and deployments can become complex as applications scale. Docker streamlines these challenges by offering a consistent, isolated environment for development and production.
 
