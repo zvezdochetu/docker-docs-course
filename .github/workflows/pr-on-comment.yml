@@ -55,11 +55,21 @@ jobs:
             --minify \
             --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      # 7. Исключаем возможный мусор из деплоя
-      - name: Create Surge Ignore
+      # ДИАГНОСТИКА: Показывает вес папки и 10 самых тяжелых файлов
+      - name: Check Public Directory Size
         run: |
-          echo "node_modules" >> ./public/.surgeignore
-          echo "*.zip" >> ./public/.surgeignore
+          echo "=== Total size of ./public ==="
+          du -sh ./public
+          echo "=== Top 10 largest files in ./public ==="
+          find ./public -type f -exec du -h {} + | sort -rh | head -n 10
+
+      # ДИАГНОСТИКА: Показывает вес папки и 10 самых тяжелых файлов
+      - name: Check Public Directory Size
+        run: |
+          echo "=== Total size of ./public ==="
+          du -sh ./public
+          echo "=== Top 10 largest files in ./public ==="
+          find ./public -type f -exec du -h {} + | sort -rh | head -n 10
 
       # 8. Деплоим облегченную папку ./public
       - name: Deploy Preview to Surge
