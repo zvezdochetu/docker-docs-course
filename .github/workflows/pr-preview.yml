@@ -1,0 +1,55 @@
+name: PR Preview Deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+  pull-requests: write # Нужно для публикации комментария в PR
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: 'latest'
+          extended: true
+
+      # Собираем сайт (подставляем временный URL Surge для корректной работы ссылок)
+      - name: Build Hugo Site
+        if: github.event.action != 'closed'
+        run: |
+          hugo \
+            --minify \
+            --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.number }}.surge.sh/"
+
+      # Деплой на Surge + авто-комментарий в PR
+      - name: Deploy Preview to Surge
+        uses: afc163/surge-preview@v1
+        with:
+          surge_token: ${{ secrets.SURGE_TOKEN }}
+          git_logs_delay_cmd: true
+          dist: './public'
+          teardown: true # Автоматически удаляет превью при закрытии/слиянии PR
