@@ -14,7 +14,7 @@ jobs:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/preview')
     runs-on: ubuntu-latest
     steps:
-      # 1. Реакция 👀 на комментарий
+      # 1. Добавляем реакцию 👀 на комментарий
       - name: Add Eyes Reaction
         uses: peter-evans/create-or-update-comment@v4
         with:
@@ -47,7 +47,7 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      # 6. Собираем статику Hugo с очисткой папки назначения
+      # 6. Собираем статику Hugo под домен текущего PR
       - name: Build Hugo Site
         run: |
           hugo \
@@ -55,25 +55,38 @@ jobs:
             --minify \
             --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      # ДИАГНОСТИКА: Показывает вес папки и 10 самых тяжелых файлов
-      - name: Check Public Directory Size
+      # 7. Агрессивная очистка тяжелых разделов для влезания в лимит Surge
+      - name: Trim Public Folder for Preview
         run: |
-          echo "=== Total size of ./public ==="
-          du -sh ./public
-          echo "=== Top 10 largest files in ./public ==="
-          find ./public -type f -exec du -h {} + | sort -rh | head -n 10
+          # Удаляем медиафайлы и ИИ-разделы
+          rm -rf ./public/assets/video
+          rm -rf ./public/ai
+          
+          # Удаляем громоздкую справочную документацию и релиз-ноутс
+          rm -rf ./public/reference
+          rm -rf ./public/desktop/release-notes
+          
+          # Копируем .surgeignore из корня репозитория в public/
+          if [ -f .surgeignore ]; then
+            cp .surgeignore ./public/.surgeignore
+          fi
 
-      # ДИАГНОСТИКА: Показывает вес папки и 10 самых тяжелых файлов
-      - name: Check Public Directory Size
-        run: |
-          echo "=== Total size of ./public ==="
+          echo "=== Size of ./public after trimming ==="
           du -sh ./public
-          echo "=== Top 10 largest files in ./public ==="
-          find ./public -type f -exec du -h {} + | sort -rh | head -n 10
 
-      # 8. Деплоим облегченную папку ./public
+      # 8. Деплоим облегченную папку ./public на Surge
       - name: Deploy Preview to Surge
         env:
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
         run: |
           npx surge ./public "${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh"
+
+      # 9. Публикуем комментарий с итоговой ссылкой
+      - name: Post Preview URL in PR
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            🚀 **Preview is ready!**
+            
+            🔍 **Link:** https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/
