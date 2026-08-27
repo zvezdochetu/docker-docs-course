@@ -1,0 +1,7 @@
+# Исключить исходники и системные файлы
+node_modules
+.git
+.github
+*.mp4
+*.zip
+*.tar.gz

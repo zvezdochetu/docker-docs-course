@@ -47,26 +47,23 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      # 6. Собираем статику Hugo под конкретный домен PR
+      # 6. Собираем статику Hugo с очисткой папки назначения
       - name: Build Hugo Site
         run: |
           hugo \
+            --cleanDestinationDir \
             --minify \
             --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      # 7. Деплоим скомпилированную папку ./public напрямую в Surge
+      # 7. Исключаем возможный мусор из деплоя
+      - name: Create Surge Ignore
+        run: |
+          echo "node_modules" >> ./public/.surgeignore
+          echo "*.zip" >> ./public/.surgeignore
+
+      # 8. Деплоим облегченную папку ./public
       - name: Deploy Preview to Surge
         env:
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
         run: |
           npx surge ./public "${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh"
-
-      # 8. Публикуем итоговый комментарий со ссылкой
-      - name: Post Preview URL in PR
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.issue.number }}
-          body: |
-            🚀 **Preview is ready!**
-            
-            🔍 **Link:** https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/
