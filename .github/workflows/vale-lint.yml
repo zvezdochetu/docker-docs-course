@@ -56,25 +56,27 @@ jobs:
           curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /tmp ${REVIEWDOG_VERSION}
           sudo mv /tmp/reviewdog /usr/local/bin/
 
-          # 3. Получение целевой ветки PR через API (с очисткой от невидимых символов)
+          # 3. Получение целевой ветки PR через API
           TARGET_BRANCH=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq '.base.ref' | tr -d '\r\n')
           if [ -z "$TARGET_BRANCH" ]; then
             TARGET_BRANCH="main"
           fi
 
           echo "Target branch resolved to: '$TARGET_BRANCH'"
-          git fetch origin "$TARGET_BRANCH" --depth=100 || true
+          
+          # Выкачиваем целевую ветку для точного расчета диффа
+          git fetch origin "$TARGET_BRANCH:$TARGET_BRANCH" --unshallow || git fetch origin "$TARGET_BRANCH:$TARGET_BRANCH" || true
 
-          # 4. Безопасная генерация патча (с разделителем '--')
-          git diff "origin/$TARGET_BRANCH..HEAD" -- > pr.patch
+          # 4. Формирование патча только для Markdown-файлов
+          git diff "$TARGET_BRANCH...HEAD" -- '*.md' > pr.patch \vert{}\vert{} git diff "origin/$TARGET_BRANCH...HEAD" -- '*.md' > pr.patch
 
-          # 5. Находим измененные .md файлы
-          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "origin/$TARGET_BRANCH..HEAD" -- \vert{} grep '\.md$' || true)
+          # 5. Список измененных .md файлов
+          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "$TARGET_BRANCH...HEAD" -- \vert{} grep '\.md$' || git diff --name-only --diff-filter=ACMRT "origin/$TARGET_BRANCH...HEAD" -- \vert{} grep '\.md$' || true)
 
           if [ -z "$CHANGED_FILES" ]; then
             OUTPUT="No modified Markdown files in this PR."
           else
-            # 6. Запуск Vale + фильтрация по патчу через флаг -patch
+            # 6. Запуск Vale + фильтрация по патчу через Reviewdog
             OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -f=vale -patch=pr.patch -filter-mode=diff_context -reporter=local 2>&1) || true
           fi
 
