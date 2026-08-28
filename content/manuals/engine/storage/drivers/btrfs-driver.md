@@ -47,7 +47,7 @@ Btrfs Filesystem as Btrfs.
   block device must be formatted for Btrfs and mounted into `/var/lib/docker/`.
   The configuration instructions below walk you through this procedure. By
   default, the SLES `/` filesystem is formatted with Btrfs, so for SLES, you do
-  not need to use a separate block device, but you can choose to do so for
+  not need to use a separate b lock device, but you can choose to do so for
   performance reasons.
 
 - `btrfs` support must exist in your kernel. To check this, run the following
