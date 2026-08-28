@@ -40,11 +40,12 @@ jobs:
           ref: refs/pull/${{ github.event.issue.number }}/head
           fetch-depth: 0
 
-      # 4. Запуск Vale CLI с фильтрацией через Reviewdog
+# 4. Запуск Vale CLI с публикацией комментариев в PR через Reviewdog
       - name: Run Vale and Filter with Reviewdog
         id: vale
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REVIEWDOG_VERSION: "v0.20.3"
         run: |
           # 1. Установка Vale CLI
@@ -74,15 +75,17 @@ jobs:
             echo "Found modified Markdown files:"
             echo "$CHANGED_FILES"
 
-            # 5. Запуск Vale с выводом --output=line и парсинг через -efm="%f:%l:%c:%m"
-            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -efm="%f:%l:%c:%m" -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=local 2>&1) || true
+            # 5. Публикация комментариев в PR через github-pr-review
+            # -reporter=github-pr-review отправляет inline-комментарии в PR
+            # -filter-mode=diff_context оставляет только замечания в измененных строках
+            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -efm="%f:%l:%c:%m" -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=github-pr-review 2>&1) || true
           fi
 
           if [ -z "$OUTPUT" ]; then
             OUTPUT="No linting issues found in modified lines!"
           fi
 
-          # 6. Обрезка по размеру для комментария
+          # 6. Обрезка по размеру для итогового комментария-статуса
           if [ ${#OUTPUT} -gt 60000 ]; then
             OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
           fi
