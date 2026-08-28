@@ -40,62 +40,63 @@ jobs:
           ref: refs/pull/${{ github.event.issue.number }}/head
           fetch-depth: 0
 
-# 4. Запуск Vale CLI с публикацией комментариев в PR через Reviewdog
-      - name: Run Vale and Filter with Reviewdog
+# 4. Мульти-вариантный тест отправки комментариев через Reviewdog
+      - name: Debug Reviewdog Reporters
         id: vale
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Явно заставляем Reviewdog думать, что мы в контексте PR:
-          OVERRIDE_GITHUB_EVENT_NAME: pull_request
-          CI_PULL_REQUEST: ${{ github.event.issue.number }}
           REVIEWDOG_VERSION: "v0.20.3"
         run: |
-          # 1. Установка Vale CLI
+          # 1. Установка утилит
           VALE_VERSION="3.3.0"
           curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
           sudo mv /tmp/vale /usr/local/bin/
 
-          # 2. Установка Reviewdog CLI
           curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /tmp ${REVIEWDOG_VERSION}
           sudo mv /tmp/reviewdog /usr/local/bin/
 
-          # 3. Определение целевой ветки PR
+          # 2. Подготовка диффа
           TARGET_BRANCH=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq '.base.ref' | tr -d '\r\n')
-          if [ -z "$TARGET_BRANCH" ]; then
-            TARGET_BRANCH="main"
-          fi
-
-          echo "Target branch: origin/$TARGET_BRANCH"
           git fetch origin "$TARGET_BRANCH"
-
-          # 4. Список измененных Markdown-файлов
           CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "origin/$TARGET_BRANCH...HEAD" -- '*.md')
 
-          if [ -z "$CHANGED_FILES" ]; then
-            OUTPUT="No modified Markdown files in this PR."
-          else
-            echo "Found modified Markdown files:"
-            echo "$CHANGED_FILES"
+          echo "Target branch: origin/$TARGET_BRANCH"
+          echo "Files: $CHANGED_FILES"
 
-            # 5. Публикация комментариев в PR через github-pr-review
-            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -efm="%f:%l:%c:%m" -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=github-pr-review 2>&1) || true
-          fi
+          # Генерируем тестовый вывод Vale в файл
+          echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 > vale_output.txt || true
+          echo "=== VALE OUTPUT ==="
+          cat vale_output.txt
 
-          if [ -z "$OUTPUT" ]; then
-            OUTPUT="No linting issues found in modified lines!"
-          fi
+          echo -e "\n=========================================="
+          echo "TEST 1: Standard github-pr-review with CI_PULL_REQUEST"
+          echo "=========================================="
+          CI_PULL_REQUEST=${{ github.event.issue.number }} \
+          reviewdog -efm="%f:%l:%c:%m" -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=github-pr-review < vale_output.txt 2>&1 || true
 
-          # 6. Обрезка по размеру для итогового комментария-статуса
-          if [ ${#OUTPUT} -gt 60000 ]; then
-            OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
-          fi
+          echo -e "\n=========================================="
+          echo "TEST 2: github-pr-comment (Issue/PR comment API)"
+          echo "=========================================="
+          CI_PULL_REQUEST=${{ github.event.issue.number }} \
+          reviewdog -efm="%f:%l:%c:%m" -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=github-pr-comment < vale_output.txt 2>&1 || true
 
-          # 7. Запись вывода в GITHUB_OUTPUT
-          DELIMITER="EOF_VALE_${RANDOM}"
-          echo "vale_output<<${DELIMITER}" >> $GITHUB_OUTPUT
-          echo "$OUTPUT" >> $GITHUB_OUTPUT
-          echo "${DELIMITER}" >> $GITHUB_OUTPUT
+          echo -e "\n=========================================="
+          echo "TEST 3: Full environment override (GITHUB_EVENT_NAME=pull_request)"
+          echo "=========================================="
+          GITHUB_EVENT_NAME=pull_request \
+          PR_NUMBER=${{ github.event.issue.number }} \
+          CI_PULL_REQUEST=${{ github.event.issue.number }} \
+          reviewdog -efm="%f:%l:%c:%m" -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=github-pr-review < vale_output.txt 2>&1 || true
+
+          echo -e "\n=========================================="
+          echo "TEST 4: github-pr-check reporter"
+          echo "=========================================="
+          CI_PULL_REQUEST=${{ github.event.issue.number }} \
+          reviewdog -efm="%f:%l:%c:%m" -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=github-pr-check < vale_output.txt 2>&1 || true
+
+          # Вывод для шага
+          echo "vale_output=Check workflow logs to see which test succeeded." >> $GITHUB_OUTPUT
 
       # 5. Обновление комментария результатом работы Vale
       - name: Update Comment with Vale Report
