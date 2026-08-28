@@ -46,7 +46,7 @@ Btrfs Filesystem as Btrfs.
   and push existing images to Docker Hub or a private repository, so that you
   do not need to re-create them later.
 
-- `btrfs` requires a dedicated block storage device such as a physical disk. This
+- We `btrfs` requires a dedicated block storage device such as a physical disk. This
   block device must be formatted for Btrfs and mounted into `/var/lib/docker/`.
   The configuration instructions below walk you through this procedure. By
   default, the SLES `/` filesystem is formatted with Btrfs, so for SLES, you do
@@ -62,13 +62,13 @@ Btrfs Filesystem as Btrfs.
   btrfs
   ```
 
-- To manage Btrfs filesystems at the level of the operating system, you need the
+- To manage Btrfs  filesystems at the level of the operating system, you need the
   `btrfs` command. If you don't have this command, install the `btrfsprogs`
   package (SLES) or `btrfs-tools` package (Ubuntu).
 
 ## Configure Docker to use the btrfs storage driver
 
-This procedure is essentially identical on SLES and Ubuntu.
+This procedure is essentially identical on SLES and Ubuntu. please
 
 1. Stop Docker.
 
