@@ -1,46 +1,4 @@
-name: Vale Lint (On Comment)
-
-on:
-  issue_comment:
-    types: [created]
-
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
-
-jobs:
-  vale-lint-comment:
-    if: github.event.issue.pull_request && contains(github.event.comment.body, '/vale')
-    runs-on: ubuntu-latest
-    steps:
-      # 1. Реакция 👀 на комментарий
-      - name: Add Eyes Reaction
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          comment-id: ${{ github.event.comment.id }}
-          reactions: eyes
-
-      # 2. Создаем начальный комментарий со статусом
-      - name: Create Status Comment
-        id: status-comment
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.issue.number }}
-          body: |
-            ⏳ **Vale linting (PR diff only) started...**
-            
-            * **Triggered by:** @${{ github.actor }}
-            * **Action run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-
-      # 3. Выкачиваем код PR
-      - name: Checkout PR Code
-        uses: actions/checkout@v4
-        with:
-          ref: refs/pull/${{ github.event.issue.number }}/head
-          fetch-depth: 0
-
-      # 4. Запуск Vale CLI с фильтрацией через Reviewdog
+# 4. Запуск Vale CLI с фильтрацией через Reviewdog
       - name: Run Vale and Filter with Reviewdog
         id: vale
         env:
@@ -56,19 +14,20 @@ jobs:
           curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /tmp ${REVIEWDOG_VERSION}
           sudo mv /tmp/reviewdog /usr/local/bin/
 
-          # 3. Получение целевой ветки PR через API
-          TARGET_BRANCH=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq '.base.ref')
+          # 3. Получение целевой ветки PR через API и очистка от невидимых символов \r
+          TARGET_BRANCH=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq '.base.ref' | tr -d '\r\n')
           if [ -z "$TARGET_BRANCH" ]; then
             TARGET_BRANCH="main"
           fi
 
-          git fetch origin "$TARGET_BRANCH"
+          echo "Target branch resolved to: '$TARGET_BRANCH'"
+          git fetch origin "$TARGET_BRANCH" --depth=100 || true
 
-          # 4. Генерируем патч с изменениями
-          git diff "origin/$TARGET_BRANCH...HEAD" > pr.patch
+          # 4. Безопасное формирование патча (с разделителем '--')
+          git diff "origin/$TARGET_BRANCH..HEAD" -- > pr.patch
 
           # 5. Находим измененные .md файлы
-          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "origin/$TARGET_BRANCH...HEAD" \vert{} grep '\.md$' || true)
+          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "origin/$TARGET_BRANCH..HEAD" -- | grep '\.md$' || true)
 
           if [ -z "$CHANGED_FILES" ]; then
             OUTPUT="No modified Markdown files in this PR."
@@ -81,34 +40,13 @@ jobs:
             OUTPUT="No linting issues found in modified lines!"
           fi
 
-          # 7. Обрезка по размеру (защита от лимита комментария)
+          # 7. Обрезка по размеру
           if [ ${#OUTPUT} -gt 60000 ]; then
             OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
           fi
 
-          # 8. Безопасная запись вывода в GITHUB_OUTPUT
+          # 8. Запись вывода в GITHUB_OUTPUT
           DELIMITER="EOF_VALE_${RANDOM}"
           echo "vale_output<<${DELIMITER}" >> $GITHUB_OUTPUT
           echo "$OUTPUT" >> $GITHUB_OUTPUT
           echo "${DELIMITER}" >> $GITHUB_OUTPUT
-
-      # 5. Обновление комментария результатом работы Vale
-      - name: Update Comment with Vale Report
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          comment-id: ${{ steps.status-comment.outputs.comment-id }}
-          edit-mode: replace
-          body: |
-            📝 **Vale Lint Completed (PR Diff Only)**
-
-            <details>
-            <summary>🔍 <b>View Vale Lint Report</b></summary>
-
-            ```text
-            ${{ steps.vale.outputs.vale_output }}
-            ```
-
-            </details>
-            
-            ---
-            *Last updated at: ${{ github.event.comment.created_at }}*
