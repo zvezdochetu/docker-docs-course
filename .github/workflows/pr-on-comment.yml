@@ -14,14 +14,12 @@ jobs:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/preview')
     runs-on: ubuntu-latest
     steps:
-      # 1. Реакция 👀 на комментарий
       - name: Add Eyes Reaction
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ github.event.comment.id }}
           reactions: eyes
 
-      # 2. Создаем первый комментарий: "Build started"
       - name: Create Status Comment
         id: status-comment
         uses: peter-evans/create-or-update-comment@v4
@@ -33,9 +31,8 @@ jobs:
             * **Triggered by:** @${{ github.actor }}
             * **Action run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             
-            *Running Vale linting, building Hugo site and deploying to Surge preview...*
+            *Building Hugo site and deploying to Surge preview...*
 
-      # 3. Выкачиваем код из PR
       - name: Checkout PR Code
         uses: actions/checkout@v4
         with:
@@ -43,68 +40,21 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # 4. Установка и запуск Vale CLI (без ANSI-мусора)
-      - name: Run Vale
-        id: vale
-        continue-on-error: true
-        if: ${{ github.event_name == 'issue_comment' || github.event_name == 'pull_request' }}
-        run: |
-          # 1. Установка Vale
-          VALE_VERSION="3.3.0"
-          curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
-          sudo mv /tmp/vale /usr/local/bin/
-
-          # 2. Определение целевой ветки (base ref)
-          TARGET_BRANCH="${{ github.base_ref }}"
-          if [ -z "$TARGET_BRANCH" ]; then
-            TARGET_BRANCH="main"
-          fi
-
-          # 3. Подтягиваем историю и находим только измененные .md файлы
-          git fetch origin $TARGET_BRANCH --depth=100 || true
-          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT origin/$TARGET_BRANCH...HEAD | grep '\.md$' || true)
-
-          # 4. Запуск Vale по диффу или фоллбэк на content/
-          if [ -n "$CHANGED_FILES" ]; then
-            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1) || true
-          else
-            OUTPUT=$(vale --output=line content/ 2>&1) || true
-          fi
-
-          if [ -z "$OUTPUT" ]; then
-            OUTPUT="No linting issues found!"
-          fi
-
-          # 5. Обрезка по размеру (защита от превышения лимита комментария)
-          if [ ${#OUTPUT} -gt 60000 ]; then
-            OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
-          fi
-
-          # 6. Запись вывода в GITHUB_OUTPUT
-          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-          echo "vale_output<<$EOF" >> $GITHUB_OUTPUT
-          echo "$OUTPUT" >> $GITHUB_OUTPUT
-          echo "$EOF" >> $GITHUB_OUTPUT
-
-      # 5. Настраиваем Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
-      # 6. Устанавливаем JS-пакеты
       - name: Install Node Dependencies
         run: npm ci
 
-      # 7. Устанавливаем Hugo Extended
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: 'latest'
           extended: true
 
-      # 8. Собираем статику Hugo
       - name: Build Hugo Site
         run: |
           hugo \
@@ -112,7 +62,6 @@ jobs:
             --minify \
             --baseURL "https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/"
 
-      # 9. Очистка ненужных папок
       - name: Trim Public Folder for Preview
         run: |
           rm -rf ./public/assets/video
@@ -127,21 +76,16 @@ jobs:
             cp .surgeignore ./public/.surgeignore
           fi
 
-          echo "=== Top 15 largest directories in ./public ==="
           du -sh ./public/* | sort -rh | head -n 15
-
-          echo "=== Final Size of ./public ==="
           du -sh ./public
 
-      # 10. Деплоим на Surge
       - name: Deploy Preview to Surge
         env:
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
         run: |
           npx surge ./public "${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh"
 
-      # 11. Редактируем стартовый комментарий на финальный (Preview + Vale)
-      - name: Update Comment with Preview URL and Vale Report
+      - name: Update Comment with Preview URL
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.status-comment.outputs.comment-id }}
@@ -150,15 +94,6 @@ jobs:
             🚀 **Preview is ready!**
             
             🔍 **Link:** https://${{ secrets.SURGE_DOMAIN }}-pr-${{ github.event.issue.number }}.surge.sh/
-
-            <details>
-            <summary>📝 <b>Vale Lint Report</b></summary>
-
-            ```text
-            ${{ steps.vale.outputs.vale_output }}
-            ```
-
-            </details>
             
             ---
             *Last updated at: ${{ github.event.comment.created_at }}*
