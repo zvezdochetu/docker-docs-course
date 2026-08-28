@@ -65,9 +65,7 @@ jobs:
           echo "Target branch: origin/$TARGET_BRANCH"
           git fetch origin "$TARGET_BRANCH"
 
-          # 4. Генерируем patch для измененных Markdown-файлов
-          git diff "origin/$TARGET_BRANCH...HEAD" -- '*.md' > pr.patch
-
+          # 4. Список измененных Markdown-файлов
           CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "origin/$TARGET_BRANCH...HEAD" -- '*.md')
 
           if [ -z "$CHANGED_FILES" ]; then
@@ -76,14 +74,8 @@ jobs:
             echo "Found modified Markdown files:"
             echo "$CHANGED_FILES"
 
-            # 5. Запуск Vale и скармливание результата в reviewdog с форматом diff (-f=diff)
-            # Vale выдает ошибки, мы можем пропустить их через reviewdog, используя diff-формат или передав пайплайн
-            # Правильнее запускать vale по файлам, а reviewdog натравливать на сам файл патча с -f=diff:
-            OUTPUT=$(cat pr.patch | reviewdog -f=diff -f.diff.strip=1 -reporter=local 2>&1) || true
-            
-            # Если нужно именно линтить через Vale, а reviewdog фильтровать по diff, то:
-            # Vale проверяет файлы, а reviewdog принимает патч через -diff="git diff origin/$TARGET_BRANCH...HEAD"
-            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -f=vale -diff="git diff origin/$TARGET_BRANCH...HEAD" -reporter=local 2>&1) || true
+            # 5. Запуск Vale с выводом --output=line и парсинг через -efm="%f:%l:%c:%m"
+            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -efm="%f:%l:%c:%m" -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=local 2>&1) || true
           fi
 
           if [ -z "$OUTPUT" ]; then
