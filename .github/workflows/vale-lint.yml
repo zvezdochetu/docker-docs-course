@@ -1,4 +1,50 @@
-# 4. Запуск Vale CLI с фильтрацией строго по измененным строкам
+name: Vale Lint on PR Comment
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  vale-lint:
+    # Срабатывает на "/vale" или "vale" в комментарии к Pull Request
+    if: |
+      github.event.issue.pull_request &&
+      (
+        startsWith(github.event.comment.body, '/vale') ||
+        startsWith(github.event.comment.body, 'vale') ||
+        startsWith(github.event.comment.body, '/VALE') ||
+        startsWith(github.event.comment.body, 'VALE')
+      )
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      # 1. Проверка исходного кода
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Поиск существующего комментария бота или создание реакции Eyes
+      - name: Add initial reaction
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ github.event.comment.id }}
+          reactions: eyes
+
+      # 3. Создание стартового комментария со статусом
+      - name: Create initial status comment
+        id: status-comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            ⏳ **Vale Linting in progress...**
+            *Triggered by @${{ github.actor }}*
+
+      # 4. Запуск Vale CLI с фильтрацией строго по измененным строкам
       - name: Run Vale on Diff Only
         id: vale
         env:
@@ -36,7 +82,7 @@
                 FILE="${BASH_REMATCH[1]}"
                 LINE_NUM="${BASH_REMATCH[2]}"
 
-                if git diff -U0 "origin/$TARGET_BRANCH...HEAD" -- "$FILE" | grep -E "^@@" | awk '{print $3}' \vert{} grep -q "+${LINE_NUM}" 2>/dev/null; then
+                if git diff -U0 "origin/$TARGET_BRANCH...HEAD" -- "$FILE" | grep -E "^@@" | awk '{print $3}' \vert{} grep -q "+${LINE_NUM}" 2>/devnull; then
                   OUTPUT="${OUTPUT}${line}\n"
                 fi
               fi
