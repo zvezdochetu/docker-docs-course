@@ -6,6 +6,9 @@ aliases:
   - /storage/storagedriver/btrfs-driver/
 ---
 
+> [!NOTE]
+> This article applies to Docker CE only.
+
 > [!IMPORTANT]
 >
 > In most cases you should use the `overlay2` storage driver - it's not
