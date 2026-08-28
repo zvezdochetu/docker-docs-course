@@ -81,16 +81,16 @@ jobs:
             OUTPUT="No linting issues found in modified lines!"
           fi
 
-          # 7. Обрезка по размеру
+          # 7. Обрезка по размеру (защита от лимита комментария)
           if [ ${#OUTPUT} -gt 60000 ]; then
             OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
           fi
 
-          # 8. Запись вывода в GITHUB_OUTPUT
-          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-          echo "vale_output<<$EOF" >> $GITHUB_OUTPUT
+          # 8. Безопасная запись вывода в GITHUB_OUTPUT
+          DELIMITER="EOF_VALE_${RANDOM}"
+          echo "vale_output<<${DELIMITER}" >> $GITHUB_OUTPUT
           echo "$OUTPUT" >> $GITHUB_OUTPUT
-          echo "$EOF" >> $GITHUB_OUTPUT
+          echo "${DELIMITER}" >> $GITHUB_OUTPUT
 
       # 5. Обновление комментария результатом работы Vale
       - name: Update Comment with Vale Report
