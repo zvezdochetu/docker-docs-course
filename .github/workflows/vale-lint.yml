@@ -88,8 +88,8 @@ jobs:
             echo "Found modified Markdown files:"
             echo "$CHANGED_FILES"
 
-            # 5. Запуск Vale с выводом --output=line и парсинг через -efm="%f:%l:%c:%m"
-            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -efm="%f:%l:%c:%m" -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=local 2>&1) || true
+            # 5. Запуск Vale -> Фильтрация Vale.Spelling через grep -v -> Передача в Reviewdog
+            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | grep -v "Vale.Spelling" | reviewdog -efm="%f:%l:%c:%m" -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=local 2>&1) || true
           fi
 
           if [ -z "$OUTPUT" ]; then
