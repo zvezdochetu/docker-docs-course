@@ -36,7 +36,7 @@ If you don't want to use a system utility to manage the Docker daemon, or just
 want to test things out, you can manually run it using the `dockerd` command.
 You may need to use `sudo`, depending on your operating system configuration.
 
-When you start Docker this way, it runs in the foreground and sends its logs
+When you start Docker this  way, it runs in the foreground and sends its logs
 directly to your terminal.
 
 ```console
