@@ -41,46 +41,60 @@ jobs:
           fetch-depth: 0
 
       # 4. Запуск Vale CLI с фильтрацией через Reviewdog
-# 4. Отладочный запуск для диагностики Git-окружения
-      - name: Debug Git Environment and Diff
+      - name: Run Vale and Filter with Reviewdog
         id: vale
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEWDOG_VERSION: "v0.20.3"
         run: |
-          echo "=== 1. ТЕКУЩИЕ ВЕТКИ И HEAD ==="
-          git status
-          echo "Current branch/commit: $(git rev-parse HEAD)"
-          echo "All local branches:"
-          git branch -a
+          # 1. Установка Vale CLI
+          VALE_VERSION="3.3.0"
+          curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
+          sudo mv /tmp/vale /usr/local/bin/
 
-          echo -e "\n=== 2. ОПРЕДЕЛЕНИЕ BASE BRANCH ==="
+          # 2. Установка Reviewdog CLI
+          curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /tmp ${REVIEWDOG_VERSION}
+          sudo mv /tmp/reviewdog /usr/local/bin/
+
+          # 3. Получение целевой ветки PR через API
           TARGET_BRANCH=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq '.base.ref' | tr -d '\r\n')
-          echo "Target branch from API: '$TARGET_BRANCH'"
+          if [ -z "$TARGET_BRANCH" ]; then
+            TARGET_BRANCH="main"
+          fi
 
-          echo -e "\n=== 3. FETCH И ПРОВЕРКА REMOTE ==="
-          git fetch origin "$TARGET_BRANCH" --verbose
-          echo "Remote branches after fetch:"
-          git branch -r
+          echo "Target branch: origin/$TARGET_BRANCH"
+          git fetch origin "$TARGET_BRANCH"
 
-          echo -e "\n=== 4. ПРОВЕРКА MERGE-BASE (ОБЩЕГО ПРЕДКА) ==="
-          MERGE_BASE=$(git merge-base HEAD "origin/$TARGET_BRANCH" || true)
-          echo "Merge base commit: '$MERGE_BASE'"
+          # 4. Генерируем patch только для модифицированных Markdown-файлов
+          git diff "origin/$TARGET_BRANCH...HEAD" -- '*.md' > pr.patch
 
-          echo -e "\n=== 5. ТЕСТ СРАВНЕНИЯ (VARIANTS OF GIT DIFF) ==="
-          echo "--- Variant A: git diff --name-only origin/$TARGET_BRANCH ---"
-          git diff --name-only "origin/$TARGET_BRANCH" || true
+          # 5. Получаем чистый список файлов через встроенный ключ git diff
+          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "origin/$TARGET_BRANCH...HEAD" -- '*.md')
 
-          echo "--- Variant B: git diff --name-only origin/$TARGET_BRANCH...HEAD ---"
-          git diff --name-only "origin/$TARGET_BRANCH...HEAD" || true
+          if [ -z "$CHANGED_FILES" ]; then
+            OUTPUT="No modified Markdown files in this PR."
+          else
+            echo "Found modified Markdown files:"
+            echo "$CHANGED_FILES"
 
-          echo "--- Variant C: git diff --name-only FETCH_HEAD...HEAD ---"
-          git diff --name-only FETCH_HEAD...HEAD || true
+            # 6. Запуск Vale по выбранным файлам и фильтрация строго по diff в reviewdog
+            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -f=vale -patch=pr.patch -filter-mode=diff_context -reporter=local 2>&1) || true
+          fi
 
-          echo -e "\n=== 6. ПОИСК ВСЕХ MD ФАЙЛОВ В КОММИТЕ ==="
-          git show --stat HEAD
+          if [ -z "$OUTPUT" ]; then
+            OUTPUT="No linting issues found in modified lines!"
+          fi
 
-          # Временный вывод в GITHUB_OUTPUT для завершения шага
-          echo "vale_output=Check Actions logs for full diagnostic trace." >> $GITHUB_OUTPUT
+          # 7. Обрезка по размеру для комментария
+          if [ ${#OUTPUT} -gt 60000 ]; then
+            OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
+          fi
+
+          # 8. Запись вывода в GITHUB_OUTPUT
+          DELIMITER="EOF_VALE_${RANDOM}"
+          echo "vale_output<<${DELIMITER}" >> $GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "${DELIMITER}" >> $GITHUB_OUTPUT
 
       # 5. Обновление комментария результатом работы Vale
       - name: Update Comment with Vale Report
