@@ -26,7 +26,7 @@ jobs:
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ⏳ **Vale linting started...**
+            ⏳ **Vale linting (diff only) started...**
             
             * **Triggered by:** @${{ github.actor }}
             * **Action run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
@@ -37,35 +37,52 @@ jobs:
           ref: refs/pull/${{ github.event.issue.number }}/head
           fetch-depth: 0
 
-      - name: Run Vale
+      - name: Run Vale and Filter with Reviewdog
         id: vale
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEWDOG_VERSION: "v0.20.3"
         run: |
+          # 1. Установка Vale CLI
           VALE_VERSION="3.3.0"
           curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
           sudo mv /tmp/vale /usr/local/bin/
 
-          TARGET_BRANCH="${{ github.base_ref }}"
+          # 2. Установка Reviewdog CLI
+          curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /tmp ${REVIEWDOG_VERSION}
+          sudo mv /tmp/reviewdog /usr/local/bin/
+
+          # 3. Получение целевой ветки PR через API
+          TARGET_BRANCH=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq '.base.ref')
           if [ -z "$TARGET_BRANCH" ]; then
             TARGET_BRANCH="main"
           fi
 
-          git fetch origin $TARGET_BRANCH --depth=100 || true
-          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT origin/$TARGET_BRANCH...HEAD \vert{} grep '\.md$' || true)
+          git fetch origin "$TARGET_BRANCH"
 
-          if [ -n "$CHANGED_FILES" ]; then
-            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1) || true
+          # 4. Поиск измененных .md файлов
+          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "origin/$TARGET_BRANCH...HEAD" \vert{} grep '\.md$' || true)
+
+          if [ -z "$CHANGED_FILES" ]; then
+            OUTPUT="No modified Markdown files in this PR."
           else
-            OUTPUT=$(vale --output=line content/ 2>&1) || true
+            # 5. Прогон Vale + фильтрация через Reviewdog по git diff
+            # -f=vale задает парсер формата Vale (file:line:col:message)
+            # -diff="git diff..." указывает разницу, по которой фильтровать
+            # -filter-mode=diff_context оставляет только замечания на измененных строках
+            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -f=vale -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=local 2>&1) || true
           fi
 
           if [ -z "$OUTPUT" ]; then
-            OUTPUT="No linting issues found!"
+            OUTPUT="No linting issues found in modified lines!"
           fi
 
+          # 6. Обрезка по лимиту комментария
           if [ ${#OUTPUT} -gt 60000 ]; then
             OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
           fi
 
+          # 7. Запись вывода в GITHUB_OUTPUT
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "vale_output<<$EOF" >> $GITHUB_OUTPUT
           echo "$OUTPUT" >> $GITHUB_OUTPUT
@@ -77,11 +94,16 @@ jobs:
           comment-id: ${{ steps.status-comment.outputs.comment-id }}
           edit-mode: replace
           body: |
-            📝 **Vale Lint Report**
+            📝 **Vale Lint Completed (PR Diff Only)**
+
+            <details>
+            <summary>🔍 <b>View Vale Lint Report</b></summary>
 
             ```text
             ${{ steps.vale.outputs.vale_output }}
             ```
+
+            </details>
             
             ---
             *Last updated at: ${{ github.event.comment.created_at }}*
