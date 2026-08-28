@@ -6,7 +6,6 @@ on:
 
 jobs:
   vale-lint:
-    # Срабатывает на "/vale" или "vale" в комментарии к Pull Request
     if: |
       github.event.issue.pull_request &&
       (
@@ -23,11 +22,22 @@ jobs:
       issues: write
 
     steps:
-      # 1. Проверка исходного кода
+      # 1. Считывание ref из PR и чекаут с полной историей (fetch-depth: 0)
+      - name: Get PR HEAD Ref
+        id: pr_ref
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_HEAD_REF=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq '.head.ref')
+          echo "pr_head_ref=${PR_HEAD_REF}" >> $GITHUB_OUTPUT
+
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr_ref.outputs.pr_head_ref }}
+          fetch-depth: 0
 
-      # 2. Поиск существующего комментария бота или создание реакции Eyes
+      # 2. Добавление реакции Eyes
       - name: Add initial reaction
         uses: peter-evans/create-or-update-comment@v4
         with:
@@ -44,18 +54,23 @@ jobs:
             ⏳ **Vale Linting in progress...**
             *Triggered by @${{ github.actor }}*
 
-      # 4. Запуск Vale CLI с фильтрацией строго по измененным строкам
-      - name: Run Vale on Diff Only
+      # 4. Запуск Vale CLI с фильтрацией через Reviewdog
+      - name: Run Vale and Filter with Reviewdog
         id: vale
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEWDOG_VERSION: "v0.20.3"
         run: |
           # 1. Установка Vale CLI
           VALE_VERSION="3.3.0"
           curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
           sudo mv /tmp/vale /usr/local/bin/
 
-          # 2. Определение целевой ветки PR
+          # 2. Установка Reviewdog CLI
+          curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /tmp ${REVIEWDOG_VERSION}
+          sudo mv /tmp/reviewdog /usr/local/bin/
+
+          # 3. Определение целевой ветки PR
           TARGET_BRANCH=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} --jq '.base.ref' | tr -d '\r\n')
           if [ -z "$TARGET_BRANCH" ]; then
             TARGET_BRANCH="main"
@@ -64,7 +79,7 @@ jobs:
           echo "Target branch: origin/$TARGET_BRANCH"
           git fetch origin "$TARGET_BRANCH"
 
-          # 3. Список измененных Markdown-файлов
+          # 4. Список измененных Markdown-файлов
           CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "origin/$TARGET_BRANCH...HEAD" -- '*.md')
 
           if [ -z "$CHANGED_FILES" ]; then
@@ -73,35 +88,23 @@ jobs:
             echo "Found modified Markdown files:"
             echo "$CHANGED_FILES"
 
-            # 4. Запуск Vale и фильтрация вывода по строкам диффа
-            VALE_RAW=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 || true)
-            OUTPUT=""
-
-            while IFS= read -r line; do
-              if [[ "$line" =~ ^([^:]+):([0-9]+):([0-9]+):(.*)$ ]]; then
-                FILE="${BASH_REMATCH[1]}"
-                LINE_NUM="${BASH_REMATCH[2]}"
-
-                if git diff -U0 "origin/$TARGET_BRANCH...HEAD" -- "$FILE" | grep -E "^@@" | awk '{print $3}' \vert{} grep -q "+${LINE_NUM}" 2>/devnull; then
-                  OUTPUT="${OUTPUT}${line}\n"
-                fi
-              fi
-            done <<< "$VALE_RAW"
+            # 5. Запуск Vale с выводом --output=line и парсинг через -efm="%f:%l:%c:%m"
+            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -efm="%f:%l:%c:%m" -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=local 2>&1) || true
           fi
 
           if [ -z "$OUTPUT" ]; then
             OUTPUT="No linting issues found in modified lines!"
           fi
 
-          # 5. Обрезка по размеру для комментария
+          # 6. Обрезка по размеру для комментария
           if [ ${#OUTPUT} -gt 60000 ]; then
             OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
           fi
 
-          # 6. Запись вывода в GITHUB_OUTPUT
+          # 7. Запись вывода в GITHUB_OUTPUT
           DELIMITER="EOF_VALE_${RANDOM}"
           echo "vale_output<<${DELIMITER}" >> $GITHUB_OUTPUT
-          echo -e "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
           echo "${DELIMITER}" >> $GITHUB_OUTPUT
 
       # 5. Обновление комментария результатом работы Vale
