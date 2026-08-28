@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   vale-lint-comment:
-    if: ${{ github.event.issue.pull_request && contains(lowercase(github.event.comment.body), '/vale') }}
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/vale')
     runs-on: ubuntu-latest
     steps:
       # 1. Реакция 👀 на комментарий
