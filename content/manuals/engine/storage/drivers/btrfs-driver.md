@@ -7,7 +7,7 @@ aliases:
 ---
 
 > [!NOTE]
-> This article applies to Docker CE only.
+> This article applies to Docker Engine only.
 
 > [!IMPORTANT]
 >
