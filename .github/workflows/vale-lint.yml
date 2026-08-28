@@ -11,10 +11,10 @@ permissions:
 
 jobs:
   vale-lint-comment:
-    if: github.event.issue.pull_request && contains(github.event.comment.body, '/vale')
+    if: ${{ github.event.issue.pull_request && contains(lowercase(github.event.comment.body), '/vale') }}
     runs-on: ubuntu-latest
     steps:
-      # 1. Реакция 👀 на триггерный комментарий
+      # 1. Реакция 👀 на комментарий
       - name: Add Eyes Reaction
         uses: peter-evans/create-or-update-comment@v4
         with:
@@ -81,7 +81,7 @@ jobs:
             OUTPUT="No linting issues found in modified lines!"
           fi
 
-          # 7. Обрезка по размеру (защита от лимита комментария)
+          # 7. Обрезка по размеру
           if [ ${#OUTPUT} -gt 60000 ]; then
             OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
           fi
