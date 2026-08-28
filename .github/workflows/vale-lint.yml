@@ -14,29 +14,33 @@ jobs:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/vale')
     runs-on: ubuntu-latest
     steps:
+      # 1. Реакция 👀 на триггерный комментарий
       - name: Add Eyes Reaction
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ github.event.comment.id }}
           reactions: eyes
 
+      # 2. Создаем начальный комментарий со статусом
       - name: Create Status Comment
         id: status-comment
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ⏳ **Vale linting (diff only) started...**
+            ⏳ **Vale linting (PR diff only) started...**
             
             * **Triggered by:** @${{ github.actor }}
             * **Action run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
+      # 3. Выкачиваем код PR
       - name: Checkout PR Code
         uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ github.event.issue.number }}/head
           fetch-depth: 0
 
+      # 4. Запуск Vale CLI с фильтрацией через Reviewdog
       - name: Run Vale and Filter with Reviewdog
         id: vale
         env:
@@ -60,34 +64,35 @@ jobs:
 
           git fetch origin "$TARGET_BRANCH"
 
-          # 4. Поиск измененных .md файлов
+          # 4. Генерируем патч с изменениями
+          git diff "origin/$TARGET_BRANCH...HEAD" > pr.patch
+
+          # 5. Находим измененные .md файлы
           CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "origin/$TARGET_BRANCH...HEAD" \vert{} grep '\.md$' || true)
 
           if [ -z "$CHANGED_FILES" ]; then
             OUTPUT="No modified Markdown files in this PR."
           else
-            # 5. Прогон Vale + фильтрация через Reviewdog по git diff
-            # -f=vale задает парсер формата Vale (file:line:col:message)
-            # -diff="git diff..." указывает разницу, по которой фильтровать
-            # -filter-mode=diff_context оставляет только замечания на измененных строках
-            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -f=vale -diff="git diff origin/$TARGET_BRANCH...HEAD" -filter-mode=diff_context -reporter=local 2>&1) || true
+            # 6. Запуск Vale + фильтрация по патчу через флаг -patch
+            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1 | reviewdog -f=vale -patch=pr.patch -filter-mode=diff_context -reporter=local 2>&1) || true
           fi
 
           if [ -z "$OUTPUT" ]; then
             OUTPUT="No linting issues found in modified lines!"
           fi
 
-          # 6. Обрезка по лимиту комментария
+          # 7. Обрезка по размеру (защита от лимита комментария)
           if [ ${#OUTPUT} -gt 60000 ]; then
             OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
           fi
 
-          # 7. Запись вывода в GITHUB_OUTPUT
+          # 8. Запись вывода в GITHUB_OUTPUT
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "vale_output<<$EOF" >> $GITHUB_OUTPUT
           echo "$OUTPUT" >> $GITHUB_OUTPUT
           echo "$EOF" >> $GITHUB_OUTPUT
 
+      # 5. Обновление комментария результатом работы Vale
       - name: Update Comment with Vale Report
         uses: peter-evans/create-or-update-comment@v4
         with:
