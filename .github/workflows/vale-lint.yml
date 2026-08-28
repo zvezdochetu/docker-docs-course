@@ -1,0 +1,87 @@
+name: Vale Lint (On Comment)
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  vale-lint-comment:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/vale')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add Eyes Reaction
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ github.event.comment.id }}
+          reactions: eyes
+
+      - name: Create Status Comment
+        id: status-comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            ⏳ **Vale linting started...**
+            
+            * **Triggered by:** @${{ github.actor }}
+            * **Action run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      - name: Checkout PR Code
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+          fetch-depth: 0
+
+      - name: Run Vale
+        id: vale
+        run: |
+          VALE_VERSION="3.3.0"
+          curl -sfL https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz | tar -xz -C /tmp
+          sudo mv /tmp/vale /usr/local/bin/
+
+          TARGET_BRANCH="${{ github.base_ref }}"
+          if [ -z "$TARGET_BRANCH" ]; then
+            TARGET_BRANCH="main"
+          fi
+
+          git fetch origin $TARGET_BRANCH --depth=100 || true
+          CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT origin/$TARGET_BRANCH...HEAD \vert{} grep '\.md$' || true)
+
+          if [ -n "$CHANGED_FILES" ]; then
+            OUTPUT=$(echo "$CHANGED_FILES" | xargs vale --output=line 2>&1) || true
+          else
+            OUTPUT=$(vale --output=line content/ 2>&1) || true
+          fi
+
+          if [ -z "$OUTPUT" ]; then
+            OUTPUT="No linting issues found!"
+          fi
+
+          if [ ${#OUTPUT} -gt 60000 ]; then
+            OUTPUT="${OUTPUT:0:60000}...\n\n(Output truncated due to size limit)"
+          fi
+
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "vale_output<<$EOF" >> $GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
+
+      - name: Update Comment with Vale Report
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.status-comment.outputs.comment-id }}
+          edit-mode: replace
+          body: |
+            📝 **Vale Lint Report**
+
+            ```text
+            ${{ steps.vale.outputs.vale_output }}
+            ```
+            
+            ---
+            *Last updated at: ${{ github.event.comment.created_at }}*
