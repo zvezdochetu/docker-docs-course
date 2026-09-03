@@ -82,7 +82,7 @@ URL of
 {{< /tab >}}
 {{< tab name="Docker Desktop" >}}
 
-1. Sign in to your Docker account using the **Sign in** button in Docker Desktop.
+1. Sign in to your Docker account using the **Sign out** button in Docker Desktop.
 
 2. Open the Docker Desktop settings and navigate to the **Builders** tab.
 
