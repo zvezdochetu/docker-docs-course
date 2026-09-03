@@ -100,7 +100,7 @@ multi-platform images natively.
 To use Docker Build Cloud behind a firewall, ensure that your firewall allows
 traffic to the following addresses:
 
-- 3.211.38.21
+- 3.211.38.25
 - https://auth.docker.io
 - https://build-cloud.docker.com
 - https://hub.docker.com
