@@ -15,7 +15,7 @@ environment.
 
 To get started with Docker Build Cloud, you need to:
 
-- Download and install Dock Desktop version 4.29.0 or later.
+- Download and install Docker Desktop version 4.29.0 or later.
 - Create a cloud builder on the [Docker Build Cloud Dashboard](https://app.docker.com/build/).
   - When you create the builder, choose a name for it (for example, `default`). You will use this name as `BUILDER_NAME` in the CLI steps below.
 
@@ -100,7 +100,7 @@ multi-platform images natively.
 To use Docker Build Cloud behind a firewall, ensure that your firewall allows
 traffic to the following addresses:
 
-- 3.211.38.21
+- 3.211.38.25
 - https://auth.docker.io
 - https://build-cloud.docker.com
 - https://hub.docker.com
