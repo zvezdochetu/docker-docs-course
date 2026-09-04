@@ -44,7 +44,7 @@ builder `docker build` should use.
 
 ## Use with Docker Compose
 
-> [!NOTE]
+> [!WARNING]
 >
 > Make sure you're using a supported version of Docker Compose ([Prerequisites](setup.md#prerequisites)).
 
