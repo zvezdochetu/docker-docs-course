@@ -44,13 +44,13 @@ builder `docker build` should use.
 
 ## Use with Docker Compose
 
-To build with Docker Build Cloud using `docker compose build`, first set the
-cloud builder as your selected builder, then run your build.
-
 > [!WARNING]
 >
 > Make sure you're using a supported version of Docker Compose, see
 > [Prerequisites](setup.md#prerequisites).
+
+To build with Docker Build Cloud using `docker compose build`, first set the
+cloud builder as your selected builder, then run your build.
 
 ```console
 $ docker buildx use cloud-<ORG>-<BUILDER_NAME>
