@@ -49,8 +49,7 @@ cloud builder as your selected builder, then run your build.
 
 > [!NOTE]
 >
-> Make sure you're using a supported version of Docker Compose, see
-> [Prerequisites](setup.md#prerequisites).
+> Make sure you're using a supported version of Docker Compose ([Prerequisites](setup.md#prerequisites)).
 
 ```console
 $ docker buildx use cloud-<ORG>-<BUILDER_NAME>
