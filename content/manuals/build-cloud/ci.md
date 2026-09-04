@@ -27,15 +27,6 @@ build cache or build without tagging the image. When you use Docker Build Cloud,
 Buildx automatically loads the build result if you build a tagged image.
 See [Loading build results](./usage/#loading-build-results) for details.
 
-<<<<<<< HEAD
-> [!WARNING]
->
-> Builds on Docker Build Cloud have a timeout limit that depends on your
-> subscription plan. Builds that run for longer than your limit are
-> automatically cancelled.
-
-=======
->>>>>>> 0f5b750e26e4b54c5acb48ff1ecdef55316946e3
 ## Setting up credentials for CI/CD
 
 To enable your CI/CD system to build and push images using Docker Build Cloud, provide both an access token and a username. The type of token and the username you use depend on your account type and permissions.
