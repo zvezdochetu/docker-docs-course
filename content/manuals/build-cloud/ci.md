@@ -8,7 +8,7 @@ aliases:
   - /build/cloud/ci/
 ---
 
-Using Docker Build Cloud in CI can speed up your build pipelines, which means less time
+Using Docker Build Cloud  in CI can speed up your build pipelines, which means less time
 spent waiting and context switching. You control your CI workflows as usual,
 and delegate the build execution to Docker Build Cloud.
 
