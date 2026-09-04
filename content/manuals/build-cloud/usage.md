@@ -47,7 +47,7 @@ builder `docker build` should use.
 To build with Docker Build Cloud using `docker compose build`, first set the
 cloud builder as your selected builder, then run your build.
 
-> [!WARNING]
+> [!NOTE]
 >
 > Make sure you're using a supported version of Docker Compose, see
 > [Prerequisites](setup.md#prerequisites).
