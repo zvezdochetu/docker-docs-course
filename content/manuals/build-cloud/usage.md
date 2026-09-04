@@ -44,10 +44,6 @@ builder `docker build` should use.
 
 ## Use with Docker Compose
 
-> [!NOTE]
->
-> Make sure you're using a supported version of Docker Compose ([Prerequisites](setup.md#prerequisites)).
-
 To build with Docker Build Cloud using `docker compose build`, first set the
 cloud builder as your selected builder, then run your build.
 
@@ -59,6 +55,10 @@ $ docker compose build
 In addition to `docker buildx use`, you can also use the `docker compose build
 --builder` flag or the [`BUILDX_BUILDER` environment
 variable](/manuals/build/building/variables.md#buildx_builder) to select the cloud builder.
+
+> [!NOTE]
+>
+> Make sure you're using a supported version of Docker Compose ([Prerequisites](setup.md#prerequisites)).
 
 ## Loading build results
 
