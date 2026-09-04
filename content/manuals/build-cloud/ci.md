@@ -61,7 +61,7 @@ If you are not an organization administrator:
 
 ## CI platform examples
 
-> [!NOTE]
+> [!WARNING]
 >
 > In your CI/CD configuration, set the following variables/secrets:
 > - `DOCKER_ACCESS_TOKEN` — your access token (PAT or OAT). Use a secret to store the token.
