@@ -24,7 +24,7 @@ steps:
     uses: docker/desktop-action/start@v0.1.0
 ```
 
-> [!NOTE]
+> [!WARNING]
 >
 > This action supports only GitHub Actions macOS runners at the moment. You need to specify `runs-on: macOS-latest` for your end to end tests.
 
