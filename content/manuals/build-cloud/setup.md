@@ -19,8 +19,6 @@ To get started with Docker Build Cloud, you need to:
 - Create a cloud builder on the [Docker Build Cloud Dashboard](https://app.docker.com/build/).
   - When you create the builder, choose a name for it (for example, `default`). You will use this name as `BUILDER_NAME` in the CLI steps below.
 
-Docker CE
-
 ### Use Docker Build Cloud without Docker Desktop
 
 To use Docker Build Cloud without Docker Desktop, you must download and install
