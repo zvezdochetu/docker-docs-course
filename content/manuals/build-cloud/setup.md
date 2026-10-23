@@ -17,11 +17,11 @@ To get started with Docker Build Cloud, you need to:
 
 - Download and install Docker Desktop version 4.28.0 or later.
 - Create a cloud builder on the [Docker Build Cloud Dashboard](https://app.docker.com/build/).
-  - When you create the builder, choose a name for it (for example, `default`). You will use this name as `BUILDER_NAME` in the CLI steps below.
+  - When you create the builder, choose a name for it (for example, `default`). You will use this name as `BUILDER_NAME` in the CLI steps below. 
 
 ### Use Docker Build Cloud without Docker Desktop
-
-To use Docker Build Cloud without Docker Desktop, you must download and install
+ 
+To use Docker  Build Cloud without Docker Desktop, you must download and install
 a version of Buildx with support for Docker Build Cloud (the `cloud` driver).
 You can find compatible Buildx binaries on the releases page of
 [this repository](https://github.com/docker/buildx-desktop).
