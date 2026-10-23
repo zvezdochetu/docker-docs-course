@@ -22,7 +22,7 @@ When using Docker Build Cloud in CI, it's recommended that you push the result t
 registry directly, rather than loading the image and then pushing it. Pushing
 directly speeds up your builds and avoids unnecessary file transfers.
 
-> [!NOTE]
+> [!WARNING]
 >
 > Builds on Docker Build Cloud have a timeout limit that depends on your
 > subscription plan. Builds that run for longer than your limit are
@@ -67,7 +67,7 @@ If you are not an organization administrator:
 
 ## CI platform examples
 
-> [!NOTE]
+> [!WARNING]
 >
 > In your CI/CD configuration, set the following variables/secrets:
 > - `DOCKER_ACCESS_TOKEN` — your access token (PAT or OAT). Use a secret to store the token.
