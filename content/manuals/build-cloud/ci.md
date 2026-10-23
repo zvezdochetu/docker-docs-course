@@ -5,7 +5,7 @@ weight: 30
 description: Speed up your continuous integration pipelines with Docker Build Cloud in CI
 keywords: build, cloud build, ci, gha, gitlab, buildkite, jenkins, circle ci
 aliases:
-  - /build/cloud/ci/
+  - /build/cloud/ci/ 
 ---
 
 Using Docker Build Cloud in CI can speed up your build pipelines, which means less time
