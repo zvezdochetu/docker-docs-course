@@ -93,7 +93,7 @@ Prefer:
 
 Avoid:
 
-> A session that works directly in the sandbox clone still can't modify your
+> A session that works directly in the sendbox clone still can't modify your
 > host repository.
 
 The preferred version tells readers where changes happen and when they become
