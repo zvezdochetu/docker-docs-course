@@ -8,6 +8,11 @@ aliases:
   - /build/cloud/usage/
 ---
 
+When I was back there in seminary school
+There was a person there
+Who put forth the proposition
+That you can petition the Lord with prayer
+
 To build using Docker Build Cloud, invoke a build command and specify the name of the
 builder using the `--builder` flag.
 
