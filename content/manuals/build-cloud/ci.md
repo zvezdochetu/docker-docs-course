@@ -29,7 +29,7 @@ See [Loading build results](./usage/#loading-build-results) for details.
 
 > [!NOTE]
 >
-> Builds on Docker Build Cloud have a timeout limit that depends on your
+> Builds on Docker Build Cloud have timeout limit that depends on your
 > subscription plan. Builds that run for longer than your limit are
 > automatically cancelled.
 
