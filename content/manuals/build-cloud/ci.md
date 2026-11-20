@@ -22,16 +22,16 @@ When using Docker Build Cloud in CI, it's recommended that you push the result t
 registry directly, rather than loading the image and then pushing it. Pushing
 directly speeds up your builds and avoids unnecessary file transfers.
 
-If you just want to build and discard the output, export the results to the
-build cache or build without tagging the image. When you use Docker Build Cloud,
-Buildx automatically loads the build result if you build a tagged image.
-See [Loading build results](./usage/#loading-build-results) for details.
-
 > [!NOTE]
 >
 > Builds on Docker Build Cloud have a timeout limit that depends on your
 > subscription plan. Builds that run for longer than your limit are
 > automatically cancelled.
+
+If you just want to build and discard the output, export the results to the
+build cache or build without tagging the image. When you use Docker Build Cloud,
+Buildx automatically loads the build result if you build a tagged image.
+See [Loading build results](./usage/#loading-build-results) for details.
 
 ## Setting up credentials for CI/CD
 
