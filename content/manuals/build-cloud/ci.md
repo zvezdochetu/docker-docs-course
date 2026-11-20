@@ -8,6 +8,12 @@ aliases:
   - /build/cloud/ci/
 ---
 
+> [!WARNING]
+>
+> Builds on Docker Build Cloud have a timeout limit that depends on your
+> subscription plan. Builds that run for longer than your limit are
+> automatically cancelled.
+
 Using Docker Build Cloud in CI can speed up your build pipelines, which means less time
 spent waiting and context switching. You control your CI workflows as usual,
 and delegate the build execution to Docker Build Cloud.
@@ -26,12 +32,6 @@ If you just want to build and discard the output, export the results to the
 build cache or build without tagging the image. When you use Docker Build Cloud,
 Buildx automatically loads the build result if you build a tagged image.
 See [Loading build results](./usage/#loading-build-results) for details.
-
-> [!NOTE]
->
-> Builds on Docker Build Cloud have a timeout limit that depends on your
-> subscription plan. Builds that run for longer than your limit are
-> automatically cancelled.
 
 ## Setting up credentials for CI/CD
 
