@@ -93,7 +93,7 @@ see [GitHub issues](https://github.com/moby/buildkit/issues?q=is%3Aissue%20state
 - Supported OS: Windows Server 2019, Windows Server 2022, Windows 11.
 - Base images: `ServerCore:ltsc2019`, `ServerCore:ltsc2022`, `NanoServer:ltsc2022`.
   See the [compatibility map here](https://learn.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility?tabs=windows-server-2019%2Cwindows-11#windows-server-host-os-compatibility).
-- Docker Desktop version 4.29 or later
+- Docker Desktop version 4.30 or later
 
 ### Steps
 
@@ -159,7 +159,7 @@ see [GitHub issues](https://github.com/moby/buildkit/issues?q=is%3Aissue%20state
 
    > [!NOTE]
    >
-   > This requires Docker Desktop version 4.29 or later.
+   > This requires Docker Desktop version 4.30 or later.
 
    ```console
    > docker buildx create --name buildkit-exp --use --driver=remote npipe:////./pipe/buildkitd
